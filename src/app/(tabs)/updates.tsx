@@ -1,10 +1,10 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 
-export default function InsidePage() {
+export default function Updates() {
   return (
     <View>
-      <Text>Tnside</Text>
+      <Text></Text>
      </View>
   );
 }

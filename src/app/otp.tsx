@@ -1,10 +1,13 @@
+import { isClerkAPIResponseError, useSignUp } from '@clerk/clerk-expo';
+import { useSignIn } from '@clerk/clerk-react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 // import { StyleSheet } from 'nativewind';
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import MaskInput from 'react-native-mask-input';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 export default function Page() {
 
@@ -15,25 +18,103 @@ export default function Page() {
     const keyboardVerticalOffset = Platform.OS === 'ios' ? 90 : 0
     const { bottom } = useSafeAreaInsets()
 
+    const { signUp, setActive } = useSignUp()
+    const { signIn } = useSignIn()
+
     const openLink = () => {
         Linking.openURL("")
     }
 
-    const sendOTP = () => {
-        setLoading(true)
-        setTimeout(() => {
-            setLoading(false)
-            router.push(`/verify/${phoneNumber}`)
-        },2000)
-    }
+    // const sendOTP = async () => {
+    //     console.log('sendOTP', phoneNumber);
+    //     setLoading(true)
+    //     try {
+
+    //         await signUp!.create({
+    //             phoneNumber
+    //         })
+
+    //         signUp!.preparePhoneNumberVerification();
+
+    //         router.push(`/verify/${phoneNumber}?signin=true`)
+
+    //         setLoading(false)
+
+    //     } catch (err) {
+    //         console.log(err)
+
+    //         if (isClerkAPIResponseError(err)) {
+    //             if (err.errors[0].code === 'form_identifiet_exists') {
+    //                 console.log('use exists')
+    //                 await trySignIn();
+    //             }
+    //             else {
+    //                 setLoading(false)
+    //                 Alert.alert('Error', err.errors[0].message)
+
+    //             }
+    //         }
+
+    //     }
+    // }
+
+
+    const sendOTP = async () => {
+        console.log('sendOTP', phoneNumber);
+        setLoading(true);
+
+        try {
+            await signUp!.create({
+                phoneNumber,
+            });
+            console.log('TESafter createT: ', signUp!.createdSessionId);
+
+            signUp!.preparePhoneNumberVerification();
+
+            console.log('after prepare: ');
+            router.push(`/verify/${phoneNumber}`);
+        } catch (err) {
+            console.log('error', JSON.stringify(err, null, 2));
+
+            if (isClerkAPIResponseError(err)) {
+                if (err.errors[0].code === 'form_identifier_exists') {
+                    // User signed up before
+                    console.log('User signed up before');
+                    await trySignIn();
+                } else {
+                    setLoading(false);
+                    Alert.alert('Error', err.errors[0].message);
+                }
+            }
+        }
+    };
 
     const trySignIn = async () => {
 
+        console.log('trySignIn', phoneNumber);
+
+        const { supportedFirstFactors } = await signIn!.create({
+            identifier: phoneNumber
+
+        })
+        const firstPhoneFactor: any = supportedFirstFactors.find((factor: any) => {
+            return factor.strategy === 'phone_code'
+        });
+
+        const { phoneNumberId } = firstPhoneFactor
+
+        await signIn!.prepareFirstFactor({
+            strategy: 'phone_code',
+            phoneNumberId
+        })
+
+        router.push(`/verify/${phoneNumber}?signin=true`)
+        setLoading(false)
     }
 
 
     return (
-        <KeyboardAvoidingView className='flex flex-col'>
+        <KeyboardAvoidingView behavior='padding' keyboardVerticalOffset={keyboardVerticalOffset} className='flex flex-col'>
             <View className='items-center p-4 gap-3'>
 
                 {loading && (
